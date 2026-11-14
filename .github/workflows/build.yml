@@ -27,12 +27,26 @@ jobs:
       - name: APK bauen
         working-directory: verde
         run: |
-          flutter create --platforms=android --project-name verde --org de.verde .
-          bash tool/configure_android.sh
-          flutter pub get
-          flutter build apk --release
+          set -o pipefail
+          { flutter create --platforms=android --project-name verde --org de.verde . \
+            && bash tool/configure_android.sh \
+            && flutter pub get \
+            && flutter build apk --release; } 2>&1 | tee ../build.log
+
+      - name: Fehler anzeigen
+        if: failure()
+        run: |
+          msg="$(grep -n -E 'What went wrong|error:|Error:|Could not|Execution failed|FAILURE|Because|version solving' -A4 build.log | cut -c1-220 | head -30)"
+          msg="$msg
+          ---- LETZTE ZEILEN ----
+          $(tail -n 12 build.log | cut -c1-220)"
+          msg="${msg//$'\n'/%0A}"
+          echo "::error title=Build-Fehler::$msg"
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: verde-apk
-          path: verde/build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            verde/build/app/outputs/flutter-apk/app-release.apk
+            build.log
