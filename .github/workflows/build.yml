@@ -1,0 +1,38 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZIP entpacken
+        run: unzip -q verde.zip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: APK bauen
+        working-directory: verde
+        run: |
+          flutter create --platforms=android --project-name verde --org de.verde .
+          bash tool/configure_android.sh
+          flutter pub get
+          flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verde-apk
+          path: verde/build/app/outputs/flutter-apk/app-release.apk
